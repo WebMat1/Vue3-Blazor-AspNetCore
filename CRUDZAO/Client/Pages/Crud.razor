@@ -1,0 +1,141 @@
+﻿@page "/crud"
+@inject HttpClient http;
+@inject IJSRuntime jsRuntime;
+
+<h1>Hello, world... Crudizada Pequenos-Gafanhotos!</h1>
+
+<EditForm Model="@Item" OnValidSubmit="EnviaMizeravi">
+
+    <DataAnnotationsValidator />
+    <ValidationSummary />
+
+    <div class="form-group">
+        <label for="example">Dado - (@(ActionToDo == Actions.Edit ? Item.id.ToString():"")) </label>
+        <InputText @bind-Value="Item.value" class="form-control" id="example" placeholder="Escreva aqui..." />
+    </div>
+
+    <div class="form-group">
+        <button type="submit" class="btn btn-success mr-3">@(ActionToDo == Actions.Add ? "Enviar" : "Salvar")</button>
+
+        @if (ActionToDo == Actions.Edit)
+        {
+            <button type="button" class="btn btn-outline-danger" @onclick="CancelEdit">Cancelar</button>
+        }
+    </div>
+</EditForm>
+
+@if (ListData != null && ListData.Count > 0)
+{
+    <table class="table">
+        <thead>
+            <tr>
+                @*<th scope="col">#</th>*@
+                <th scope="col">GUID</th>
+                <th scope="col">Dado</th>
+                <th scope="col">Ações</th>
+            </tr>
+        </thead>
+        <tbody>
+            @*@for (int i = 0; i < ListData.Count; i++)*@
+            @foreach(var i in ListData)
+            {
+                <tr>
+                    @*<th scope="row">@(i+1)</th>*@
+                    <td>@i.id.ToString()</td>
+                    <td>@i.value</td>
+                    <td>
+                        <div class="d-inline-flex w-100 justify-content-between">
+                            <button type="button" class="btn btn-info w-100 mr-2" @onclick="() => EditItem(i)"><span class="oi oi-pencil"></span>Edit</button>
+                            <button type="button" class="btn btn-danger w-100" @onclick="() => DeletaMizeravi(i)"><span class="oi oi-minus"></span>Delete</button>
+                        </div>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+
+@code{
+    public Actions ActionToDo { get; set; } = Actions.Add;
+
+    public ModelRequest Item { get; set; } = new ModelRequest();
+
+    public IList<ModelRequest> ListData { get; set; } = new List<ModelRequest>();
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+            await RecebeMizeravi();
+
+        await base.OnAfterRenderAsync(firstRender);
+    }
+
+    async Task EnviaMizeravi()
+    {
+        if (ActionToDo == Actions.Add)
+            await AdicionaMizeravi();
+        else
+            await EditaMizeravi();
+
+        //limpa os campos
+        Item = new ModelRequest();
+        ActionToDo = Actions.Add;
+
+        //atualiza a lista de dados
+        await RecebeMizeravi();
+    }
+
+    async Task AdicionaMizeravi()
+    {
+        //envia pro servidor as infos
+        var response = await http.PostAsJsonAsync("api/crud", Item.value);
+
+        await jsRuntime.InvokeVoidAsync("console.log", response.StatusCode.ToString());
+    }
+    async Task EditaMizeravi()
+    {
+        //envia pro servidor as infos
+        var response = await http.PutAsJsonAsync("api/crud", Item);
+
+        await jsRuntime.InvokeVoidAsync("console.log", response.StatusCode.ToString());
+    }
+    async Task DeletaMizeravi(ModelRequest item)
+    {
+        //envia pro servidor as infos
+        var response = await http.DeleteAsync("api/crud/"+item.id.ToString());
+
+        await jsRuntime.InvokeVoidAsync("console.log", response.StatusCode.ToString());
+
+        //limpa os campos
+        Item = new ModelRequest();
+        ActionToDo = Actions.Add;
+
+        //atualiza a lista de dados
+        await RecebeMizeravi();
+    }
+
+    async Task RecebeMizeravi()
+    {
+        var response = await http.GetFromJsonAsync<IEnumerable<ModelRequest>>("api/crud");
+
+        ListData = response.ToList();
+    }
+
+    void EditItem(ModelRequest item)
+    {
+        Item = item.Clone();
+        ActionToDo = Actions.Edit;
+    }
+
+    void CancelEdit()
+    {
+        Item = new ModelRequest();
+        ActionToDo = Actions.Add;
+    }
+
+    public enum Actions{
+        Add,
+        Edit
+    }
+}
